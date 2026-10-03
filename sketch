@@ -1,0 +1,104 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "DHT.h"
+
+#define DHTPIN 15
+#define DHTTYPE DHT22
+#define LDR_PIN 34
+
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+
+// Enter your ThingSpeak Write API Key here
+const char* apiKey = "YOUR_WRITE_API_KEY";
+
+const char* server = "http://api.thingspeak.com/update";
+
+DHT dht(DHTPIN, DHTTYPE);
+
+unsigned long lastUpdate = 0;
+const unsigned long updateInterval = 20000;
+
+void setup() {
+  Serial.begin(115200);
+
+  dht.begin();
+  pinMode(LDR_PIN, INPUT);
+
+  Serial.println("IoT Environmental Monitoring");
+  Serial.println("Connecting to WiFi...");
+
+  WiFi.begin(ssid, password, 6);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi Connected!");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+
+  if (millis() - lastUpdate >= updateInterval) {
+    lastUpdate = millis();
+
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    int lightValue = analogRead(LDR_PIN);
+
+    if (isnan(temperature) || isnan(humidity)) {
+      Serial.println("Sensor reading error!");
+      return;
+    }
+
+    Serial.println("--------------------------");
+    Serial.print("Temperature: ");
+    Serial.println(temperature);
+
+    Serial.print("Humidity: ");
+    Serial.println(humidity);
+
+    Serial.print("Light Level: ");
+    Serial.println(lightValue);
+
+    if (WiFi.status() == WL_CONNECTED) {
+
+      HTTPClient http;
+
+      String url = String(server) +
+                   "?api_key=" + apiKey +
+                   "&field1=" + String(temperature, 2) +
+                   "&field2=" + String(humidity, 2) +
+                   "&field3=" + String(lightValue);
+
+      http.begin(url);
+
+      int httpCode = http.GET();
+
+      if (httpCode > 0) {
+        String response = http.getString();
+
+        Serial.print("ThingSpeak Response: ");
+        Serial.println(response);
+
+        if (response.toInt() > 0) {
+          Serial.println("Data uploaded successfully!");
+        } else {
+          Serial.println("Upload not accepted. Check API key.");
+        }
+
+      } else {
+        Serial.print("HTTP Error: ");
+        Serial.println(httpCode);
+      }
+
+      http.end();
+
+    } else {
+      Serial.println("WiFi disconnected!");
+    }
+  }
+}
