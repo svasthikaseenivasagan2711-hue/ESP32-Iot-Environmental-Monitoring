@@ -36,6 +36,7 @@ The ESP32 successfully reads temperature, humidity and light-level values and up
 ## Project Evidence
 
 Screenshots and system diagrams are available in the screenshots and diagrams folders.
+https://wokwi.com/projects/476738776057830401
 
 ## Future Scope
 
